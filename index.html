@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer Service Queue Manager</title>
+  <style> 
+  * { box-sizing: border-box; }
+:root {
+  --ink: #18212f;
+  --muted: #647084;
+  --paper: #f4f6fa;
+  --panel: #ffffff;
+  --line: #e0e6ef;
+  --accent: #3158d5;
+  --accent-dark: #2343ac;
+  --green: #13795b;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+}
+.app { width: min(760px, calc(100% - 32px)); margin: 36px auto; }
+header { margin-bottom: 22px; }
+.eyebrow { color: var(--accent); font-size: .75rem; font-weight: 800; letter-spacing: .13em; margin: 0 0 8px; }
+h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.08; margin: 0 0 10px; letter-spacing: -.04em; }
+h2 { font-size: 1.15rem; margin: 0 0 12px; }
+.intro, .muted { color: var(--muted); }
+.intro { margin: 0; }
+.panel, .summary-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(24, 33, 47, .04);
+}
+.panel { padding: 22px; margin-bottom: 16px; }
+label { display: block; font-size: .9rem; font-weight: 700; margin-bottom: 7px; }
+.input-row { display: flex; gap: 10px; }
+input {
+  min-width: 0; flex: 1; border: 1px solid #cbd4e2; border-radius: 10px;
+  padding: 12px 13px; font: inherit; outline: none;
+}
+input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(49, 88, 213, .12); }
+button { border: 0; border-radius: 10px; padding: 12px 15px; font: inherit; font-weight: 700; cursor: pointer; }
+button:focus-visible { outline: 3px solid #a9baff; outline-offset: 2px; }
+button[type="submit"], .primary { background: var(--accent); color: white; }
+button[type="submit"]:hover, .primary:hover { background: var(--accent-dark); }
+.secondary { background: #edf0f6; color: var(--ink); }
+.secondary:hover { background: #e1e6ef; }
+.status { min-height: 1.4em; margin: 12px 0 0; font-size: .9rem; color: var(--green); }
+.status.error { color: #b42318; }
+.summary { display: grid; grid-template-columns: .7fr 1.3fr; gap: 14px; margin-bottom: 16px; }
+.summary-card { padding: 18px 20px; }
+.summary-label { display: block; color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
+.summary-card strong { font-size: 1.7rem; overflow-wrap: anywhere; }
+.next-card strong { font-size: 1.25rem; }
+.queue-heading { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.queue-heading h2 { margin-bottom: 2px; }
+.queue-heading p { margin: 0 0 12px; font-size: .88rem; }
+.fifo-badge { color: var(--accent); background: #edf1ff; border-radius: 999px; padding: 5px 10px; font-size: .78rem; font-weight: 800; }
+.queue-list, .served-list { list-style: none; margin: 0; padding: 0; }
+.queue-list li, .served-list li { border: 1px solid var(--line); border-radius: 11px; padding: 12px 14px; margin-bottom: 8px; display: flex; gap: 12px; align-items: center; }
+.queue-number { display: inline-grid; place-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px; background: #edf1ff; color: var(--accent); font-weight: 800; font-size: .85rem; }
+.queue-name { font-weight: 700; overflow-wrap: anywhere; }
+.queue-position { margin-left: auto; color: var(--muted); font-size: .78rem; white-space: nowrap; }
+.queue-list .empty-state, .served-list .muted { color: var(--muted); justify-content: center; border-style: dashed; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.actions button { flex: 1; }
+.served-panel h2 { margin-bottom: 12px; }
+.served-list li { font-size: .92rem; }
+.served-check { color: var(--green); font-weight: 800; }
+footer { text-align: center; color: var(--muted); font-size: .82rem; padding: 8px 4px 24px; }
+footer p { margin: 5px 0; }
+@media (max-width: 540px) {
+  .app { margin-top: 22px; }
+  .panel { padding: 17px; }
+  .input-row { flex-direction: column; }
+  .summary { grid-template-columns: 1fr 1fr; }
+  .summary-card { padding: 15px; }
+  .summary-card strong { font-size: 1.4rem; }
+  .next-card strong { font-size: 1.05rem; }
+  .queue-position { display: none; }
+}
+</style>
+
+</head>
+<body>
+  <main class="app">
+    <header>
+      <p class="eyebrow">DATA STRUCTURES DEMONSTRATION</p>
+      <h1>Customer Service Queue</h1>
+      <p class="intro">A simple FIFO queue: first customer in, first customer served.</p>
+    </header>
+
+    <section class="panel">
+      <h2>Add a customer</h2>
+      <form id="customer-form">
+        <label for="customer-name">Customer name</label>
+        <div class="input-row">
+          <input id="customer-name" name="customer-name" type="text"
+                 maxlength="60" placeholder="Enter a name" autocomplete="off" required>
+          <button type="submit">Add to queue</button>
+        </div>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite">Ready. Add the first customer to begin.</p>
+    </section>
+
+    <section class="summary" aria-label="Queue summary">
+      <div class="summary-card">
+        <span class="summary-label">Waiting</span>
+        <strong id="waiting-count">0</strong>
+      </div>
+      <div class="summary-card next-card">
+        <span class="summary-label">Next to be served</span>
+        <strong id="next-customer">—</strong>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="queue-heading">
+        <div>
+          <h2>Waiting list</h2>
+          <p class="muted">Front of queue → Rear of queue</p>
+        </div>
+        <span class="fifo-badge">FIFO</span>
+      </div>
+      <ol id="queue-list" class="queue-list">
+        <li class="empty-state">No customers are waiting.</li>
+      </ol>
+      <div class="actions">
+        <button id="serve-next" type="button" class="primary">Serve next customer</button>
+        <button id="clear-queue" type="button" class="secondary">Clear queue</button>
+      </div>
+    </section>
+
+    <section class="panel served-panel">
+      <h2>Recently served</h2>
+      <ul id="served-list" class="served-list">
+        <li class="muted">No customers served yet.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p><strong>Queue operations:</strong> Add customer = enqueue · Serve next = dequeue</p>
+      <p class="muted">This demonstration runs in your browser. Refreshing the page resets the queue.</p>
+    </footer>
+  </main>
+  
+  <script>
+const queue = [];
+const served = [];
+
+const form = document.getElementById("customer-form");
+const nameInput = document.getElementById("customer-name");
+const queueList = document.getElementById("queue-list");
+const servedList = document.getElementById("served-list");
+const waitingCount = document.getElementById("waiting-count");
+const nextCustomer = document.getElementById("next-customer");
+const status = document.getElementById("status");
+const serveButton = document.getElementById("serve-next");
+const clearButton = document.getElementById("clear-queue");
+
+function showStatus(message, isError = false) {
+  status.textContent = message;
+  status.classList.toggle("error", isError);
+}
+
+function renderQueue() {
+  waitingCount.textContent = queue.length;
+  nextCustomer.textContent = queue.length ? queue[0] : "—";
+  queueList.replaceChildren();
+
+  if (queue.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "empty-state";
+    empty.textContent = "No customers are waiting.";
+    queueList.appendChild(empty);
+  } else {
+    queue.forEach((name, index) => {
+      const item = document.createElement("li");
+      const number = document.createElement("span");
+      number.className = "queue-number";
+      number.textContent = index + 1;
+
+      const customerName = document.createElement("span");
+      customerName.className = "queue-name";
+      customerName.textContent = name;
+
+      const position = document.createElement("span");
+      position.className = "queue-position";
+      position.textContent = index === 0 ? "NEXT" : `Position ${index + 1}`;
+
+      item.append(number, customerName, position);
+      queueList.appendChild(item);
+    });
+  }
+
+  serveButton.disabled = queue.length === 0;
+  serveButton.style.opacity = queue.length === 0 ? "0.55" : "1";
+  serveButton.style.cursor = queue.length === 0 ? "not-allowed" : "pointer";
+}
+
+function renderServed() {
+  servedList.replaceChildren();
+  if (served.length === 0) {
+    const item = document.createElement("li");
+    item.className = "muted";
+    item.textContent = "No customers served yet.";
+    servedList.appendChild(item);
+    return;
+  }
+
+  served.slice(-5).reverse().forEach((name) => {
+    const item = document.createElement("li");
+    const check = document.createElement("span");
+    check.className = "served-check";
+    check.textContent = "✓";
+    const label = document.createElement("span");
+    label.textContent = name;
+    item.append(check, label);
+    servedList.appendChild(item);
+  });
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const name = nameInput.value.trim();
+
+  if (!name) {
+    showStatus("Please enter a customer name before adding.", true);
+    nameInput.focus();
+    return;
+  }
+
+  queue.push(name); // ENQUEUE: add to the rear of the queue
+  renderQueue();
+  showStatus(`${name} was added to the end of the queue.`);
+  form.reset();
+  nameInput.focus();
+});
+
+serveButton.addEventListener("click", () => {
+  if (queue.length === 0) {
+    showStatus("The queue is empty. There is no customer to serve.", true);
+    return;
+  }
+
+  const customer = queue.shift(); // DEQUEUE: remove from the front of the queue
+  served.push(customer);
+  renderQueue();
+  renderServed();
+  showStatus(`${customer} has been served.`);
+});
+
+clearButton.addEventListener("click", () => {
+  if (queue.length === 0) {
+    showStatus("The waiting queue is already empty.");
+    return;
+  }
+
+  const count = queue.length;
+  queue.length = 0;
+  renderQueue();
+  showStatus(`Queue cleared. ${count} waiting customer(s) removed.`);
+});
+
+renderQueue();
+renderServed();
+</script>
+</body>
+</html>
